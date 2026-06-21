@@ -13,12 +13,13 @@ def pre_tokenization(text: str, special_tokens: list[str]):
     delimiter = "|".join(re.escape(token) for token in special_tokens)
     text_split = re.split(delimiter, text)
 
-    # avoid storing pre_tokenized words
-    for match in re.finditer(PAT, text_split):
-        pre_token = match.group() # split is a match object, not string
-        # iterating over encoded string gives integers
-        pre_token_bytes = tuple(bytes([s]) for s in pre_token.encode("utf-8"))
-        freq_table[pre_token_bytes] = freq_table.get(pre_token_bytes, 0) + 1 
+    for text_chunk in text_split:
+        # avoid storing pre_tokenized words
+        for match in re.finditer(PAT, text_chunk):
+            pre_token = match.group() # split is a match object, not string
+            # iterating over encoded string gives integers
+            pre_token_bytes = tuple(bytes([s]) for s in pre_token.encode("utf-8"))
+            freq_table[pre_token_bytes] = freq_table.get(pre_token_bytes, 0) + 1 
 
     return freq_table
 
