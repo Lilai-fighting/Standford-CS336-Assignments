@@ -1,10 +1,37 @@
 import regex as re
-# from pathlib import Path
 import multiprocessing as mp
+import os
+import time
+import threading
+import psutil
+import pickle
+from pathlib import Path
 from collections import Counter
 from cs336_basics.pretokenization_example import find_chunk_boundaries
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+peak_memory = 0
+stop_monitor = threading.Event()
+
+def monitor_memory():
+    global peak_memory
+
+    parent = psutil.Process(os.getpid())
+
+    while not stop_monitor.is_set():
+        total_memory = 0
+
+        processes = [parent] + parent.children(recursive=True)
+
+        for proc in processes:
+            try:
+                total_memory += proc.memory_info().rss
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+        peak_memory = max(peak_memory, total_memory)
+
+        stop_monitor.wait(0.05)
 
 def count_word_freq(text: str, special_tokens: list[str]):
     """
@@ -179,3 +206,32 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: list[str], n_pro
     new_vocab, merges = apply_complete_merge(freq_table, vocab, end_id, vocab_size)
 
     return new_vocab, merges
+
+if __name__ == "__main__":
+    stop_monitor.clear()
+    monitor = threading.Thread(target=monitor_memory)
+    start_time = time.perf_counter()
+    monitor.start()
+
+    try:
+        vocab, merges = train_bpe(
+            input_path="data/TinyStoriesV2-GPT4-train.txt",
+            vocab_size=10000,
+            special_tokens=['<|endoftext|>']
+        )
+    finally:
+        stop_monitor.set()
+        monitor.join()
+
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    output_dir = Path("output")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with open(output_dir / "vocab.pkl", "wb") as f:
+        pickle.dump(list(vocab.values()), f)
+    with open(output_dir / "merges.pkl", "wb") as f:
+        pickle.dump(merges, f)
+    print(f"Execution Time: {elapsed_time:.4f} seconds")
+    print(f"Peak Memory: {peak_memory / 1024**2:.2f} MiB")
+    longest_token = max(vocab.values(), key=lambda x: len(x))
+    print(longest_token)
