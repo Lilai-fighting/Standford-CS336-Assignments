@@ -215,8 +215,8 @@ if __name__ == "__main__":
 
     try:
         vocab, merges = train_bpe(
-            input_path="data/TinyStoriesV2-GPT4-train.txt",
-            vocab_size=10000,
+            input_path="data/owt_train.txt",
+            vocab_size=32000,
             special_tokens=['<|endoftext|>']
         )
     finally:
@@ -227,9 +227,9 @@ if __name__ == "__main__":
     elapsed_time = end_time - start_time
     output_dir = Path("output")
     output_dir.mkdir(parents=True, exist_ok=True)
-    with open(output_dir / "vocab.pkl", "wb") as f:
+    with open(output_dir / "owt_vocab.pkl", "wb") as f:
         pickle.dump(list(vocab.values()), f)
-    with open(output_dir / "merges.pkl", "wb") as f:
+    with open(output_dir / "owt_merges.pkl", "wb") as f:
         pickle.dump(merges, f)
     print(f"Execution Time: {elapsed_time:.4f} seconds")
     print(f"Peak Memory: {peak_memory / 1024**2:.2f} MiB")
